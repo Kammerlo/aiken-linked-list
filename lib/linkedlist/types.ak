@@ -1,7 +1,7 @@
-use aiken/hash.{Blake2b_224, Hash}
-use aiken/transaction.{OutputReference}
-use aiken/transaction/credential.{Address, VerificationKey}
-use aiken/transaction/value.{AssetName, PolicyId, Value}
+use aiken/crypto.{Blake2b_224, Hash, VerificationKey}
+use cardano/address.{Address}
+use cardano/assets.{AssetName, PolicyId, Value}
+use cardano/transaction.{OutputReference}
 
 /// A number of milliseconds since 00:00:00 UTC on 1 January 1970.
 pub type POSIXTime =

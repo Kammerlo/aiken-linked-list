@@ -1,10 +1,10 @@
-use aiken/bytearray
+use aiken/collection/list
 use aiken/interval.{Interval}
-use aiken/list
-use aiken/transaction.{Output}
-use aiken/transaction/value.{lovelace_of}
+use aiken/primitive/bytearray
+use cardano/assets.{lovelace_of}
+use cardano/transaction.{Output}
 use linkedlist/constants
-use linkedlist/types.{Common, Config, Empty, POSIXTime, PubKeyHash, SetNode}
+use linkedlist/types.{Common, Config, Empty, PubKeyHash, SetNode}
 use linkedlist/utils
 
 pub fn init(common: Common) -> Bool {
@@ -64,7 +64,7 @@ pub fn insert(common: Common, insert_key: PubKeyHash, node: SetNode) -> Bool {
 
 pub fn remove(
   common: Common,
-  range: Interval<POSIXTime>,
+  range: Interval,
   disc_config: Config,
   outs: List<Output>,
   sigs: List<PubKeyHash>,

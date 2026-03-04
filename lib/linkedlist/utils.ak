@@ -1,17 +1,11 @@
-use aiken/bytearray
-use aiken/dict.{has_key}
+use aiken/collection/dict
+use aiken/collection/list
 use aiken/interval.{Interval}
-use aiken/list
-use aiken/transaction.{
-  InlineDatum, Input, Mint, Output, ScriptContext, Transaction,
-}
-use aiken/transaction/value.{
-  AssetName, PolicyId, Value, flatten, from_minted_value, to_dict, tokens,
-}
+use aiken/primitive/bytearray
+use cardano/assets.{AssetName, PolicyId, Value, flatten, to_dict, tokens}
+use cardano/transaction.{InlineDatum, Input, Output, Transaction}
 use linkedlist/constants.{set_node_prefix}
-use linkedlist/types.{
-  Common, Empty, Key, NodePair, POSIXTime, PubKeyHash, SetNode,
-}
+use linkedlist/types.{Common, Empty, Key, NodePair, PubKeyHash, SetNode}
 
 pub fn validate_mint(
   mints: Value,
@@ -19,30 +13,31 @@ pub fn validate_mint(
   expected_minting_name: ByteArray,
   expected_minting_amt: Int,
 ) -> Bool {
-  let mints_policy = dict.to_list(value.tokens(mints, expected_minting_policy))
-  mints_policy == [(expected_minting_name, expected_minting_amt)]
+  tokens(mints, expected_minting_policy) == dict.from_pairs(
+    [Pair(expected_minting_name, expected_minting_amt)],
+  )
 }
 
 pub fn cover_key(node: SetNode, insert_key: PubKeyHash) -> Bool {
   let less_than_key =
     when node.key is {
       Empty -> True
-      Key(key) -> bytearray.compare(key, insert_key) == Less
+      Key { key } -> bytearray.compare(key, insert_key) == Less
     }
   let more_than_key =
     when node.next is {
       Empty -> True
-      Key(key) -> bytearray.compare(key, insert_key) == Greater
+      Key { key } -> bytearray.compare(key, insert_key) == Greater
     }
   less_than_key? && more_than_key?
 }
 
 pub fn as_predecessor_of(node: SetNode, next_key: PubKeyHash) -> SetNode {
-  SetNode { key: node.key, next: Key(next_key) }
+  SetNode { key: node.key, next: Key { key: next_key } }
 }
 
 pub fn as_successor_of(prev_key: PubKeyHash, node: SetNode) -> SetNode {
-  SetNode { key: Key(prev_key), next: node.next }
+  SetNode { key: Key { key: prev_key }, next: node.next }
 }
 
 pub fn div_ceil(a, b: Int) -> Int {
@@ -55,19 +50,17 @@ pub fn div_ceil(a, b: Int) -> Int {
 }
 
 pub fn make_common(
-  ctx: ScriptContext,
-) -> (Common, List<Input>, List<Output>, List<PubKeyHash>, Interval<POSIXTime>) {
-  expect ScriptContext {
-    transaction: Transaction {
-      inputs,
-      outputs,
-      mint,
-      validity_range,
-      extra_signatories,
-      ..
-    },
-    purpose: Mint(own_cs),
-  } = ctx
+  self: Transaction,
+  own_cs: PolicyId,
+) -> (Common, List<Input>, List<Output>, List<PubKeyHash>, Interval) {
+  let Transaction {
+    inputs,
+    outputs,
+    mint,
+    validity_range,
+    extra_signatories,
+    ..
+  } = self
   let in_outputs = get_outputs(inputs)
   let from_node_val = only_at_node_val(in_outputs, own_cs)
   let to_node_val = only_at_node_val(outputs, own_cs)
@@ -89,8 +82,7 @@ pub fn make_common(
   let node_inputs = list.map(from_node_val, node_input_utxo_datum_unsafe)
   let node_outputs =
     list.map(to_node_val, fn(node) { parse_node_output_utxo(own_cs, node) })
-  let common =
-    Common { own_cs, mint: from_minted_value(mint), node_inputs, node_outputs }
+  let common = Common { own_cs, mint, node_inputs, node_outputs }
   (common, inputs, outputs, extra_signatories, validity_range)
 }
 
@@ -98,7 +90,7 @@ pub fn make_common(
 pub fn has_data_cs(cs: PolicyId, value: Value) -> Bool {
   value
     |> to_dict()
-    |> has_key(cs)
+    |> dict.has_key(cs)
 }
 
 pub fn get_outputs(inputs: List<Input>) -> List<Output> {
@@ -130,16 +122,16 @@ pub fn node_input_utxo_datum_unsafe(output: Output) -> NodePair {
 pub fn parse_node_output_utxo(cs: PolicyId, output: Output) -> NodePair {
   expect Output { value, datum: InlineDatum(raw_node), .. } = output
   expect node: SetNode = raw_node
-  expect [(tn, amount)] =
+  expect [Pair(tn, amount)] =
     value
       |> tokens(cs)
-      |> dict.to_list()
+      |> dict.to_pairs()
   expect amount == 1
   let node_key = parse_node_key(tn)
   let datum_key =
     when node.key is {
       Empty -> None
-      Key(key) -> Some(key)
+      Key { key } -> Some(key)
     }
   expect node_key == datum_key
   expect list.length(flatten(value)) == 2
@@ -162,10 +154,10 @@ pub fn parse_node_key(tn: AssetName) -> Option<ByteArray> {
 pub fn valid_node(node: SetNode) -> Bool {
   when node.key is {
     Empty -> True
-    Key(node_key) ->
+    Key { key: node_key } ->
       when node.next is {
         Empty -> True
-        Key(next_key) -> bytearray.compare(node_key, next_key) == Less
+        Key { key: next_key } -> bytearray.compare(node_key, next_key) == Less
       }
   }
 }

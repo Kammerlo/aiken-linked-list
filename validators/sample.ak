@@ -1,13 +1,12 @@
-use aiken/bytearray
-use aiken/dict
+use aiken/collection/dict
+use aiken/collection/list
 use aiken/interval.{Finite, Interval, IntervalBound, is_entirely_before}
-use aiken/list
-use aiken/transaction.{
-  InlineDatum, Input, Mint, NoDatum, Output, OutputReference, ScriptContext,
-  Transaction, TransactionId,
+use aiken/primitive/bytearray
+use cardano/address.{Address, Script}
+use cardano/assets.{PolicyId}
+use cardano/transaction.{
+  InlineDatum, Input, NoDatum, Output, OutputReference, Transaction,
 }
-use aiken/transaction/credential.{Address}
-use aiken/transaction/value
 use linkedlist/constants.{origin_node_token_name}
 use linkedlist/linked_list.{deinit, init, insert, remove}
 use linkedlist/types.{
@@ -15,9 +14,10 @@ use linkedlist/types.{
 }
 use linkedlist/utils
 
-validator {
-  fn mint_validator(cfg: Config, redeemer: NodeAction, ctx: ScriptContext) {
-    let (common, inputs, outputs, sigs, vrange) = utils.make_common(ctx)
+validator sample(cfg: Config) {
+  mint(redeemer: NodeAction, policy_id: PolicyId, self: Transaction) {
+    let (common, inputs, outputs, sigs, vrange) =
+      utils.make_common(self, policy_id)
     when redeemer is {
       Init -> {
         expect
@@ -39,139 +39,138 @@ validator {
       }
     }
   }
+
+  else(_) {
+    fail
+  }
 }
 
 test mint_validator_init() {
   let own_cs = #"746fa3ba2daded6ab9ccc1e39d3835aa1dfcb9b5a54acc2ebe6b79a4"
   let init_output_ref =
     OutputReference {
-      transaction_id: TransactionId {
-        hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-      },
+      transaction_id: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
       output_index: 1,
     }
   let config =
     Config {
       init_utxo: init_output_ref,
       deadline: 86_400_000,
-      penalty_address: Address(credential.ScriptCredential("P"), None),
+      penalty_address: Address { payment_credential: Script("P"), stake_credential: None },
     }
   let redeemer = Init
-  let minted_value = value.add(value.zero(), own_cs, origin_node_token_name, 1)
+  let minted_value = assets.add(assets.zero, own_cs, origin_node_token_name, 1)
   let head_output =
     Output {
-      address: Address(credential.ScriptCredential("B"), None),
-      value: value.add(
+      address: Address { payment_credential: Script("B"), stake_credential: None },
+      value: assets.add(
         minted_value,
-        value.ada_policy_id,
-        value.ada_asset_name,
+        assets.ada_policy_id,
+        assets.ada_asset_name,
         4_000_000,
       ),
       datum: InlineDatum(SetNode { key: Empty, next: Empty }),
       reference_script: None,
     }
-  let context =
-    ScriptContext {
-      purpose: Mint(own_cs),
-      transaction: Transaction {
-        inputs: [
-          Input {
-            output_reference: init_output_ref,
-            output: Output {
-              address: Address(credential.ScriptCredential("C"), None),
-              value: value.from_lovelace(4_000_000),
-              datum: NoDatum,
-              reference_script: None,
+  let tx =
+    Transaction {
+      inputs: [
+        Input {
+          output_reference: init_output_ref,
+          output: Output {
+            address: Address {
+              payment_credential: Script("C"),
+              stake_credential: None,
             },
+            value: assets.from_lovelace(4_000_000),
+            datum: NoDatum,
+            reference_script: None,
           },
-        ],
-        reference_inputs: [],
-        outputs: [head_output],
-        fee: value.zero(),
-        mint: value.to_minted_value(minted_value),
-        certificates: [],
-        withdrawals: dict.new(),
-        validity_range: interval.everything(),
-        extra_signatories: [],
-        redeemers: dict.new(),
-        datums: dict.new(),
-        id: TransactionId {
-          hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
         },
-      },
+      ],
+      reference_inputs: [],
+      outputs: [head_output],
+      fee: 0,
+      mint: minted_value,
+      certificates: [],
+      withdrawals: [],
+      validity_range: interval.everything,
+      extra_signatories: [],
+      redeemers: [],
+      datums: dict.empty,
+      id: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
+      votes: [],
+      proposal_procedures: [],
+      current_treasury_amount: None,
+      treasury_donation: None,
     }
 
-  mint_validator(config, redeemer, context)
+  sample.mint(config, redeemer, own_cs, tx)
 }
 
 test mint_validator_deinit() {
   let own_cs = #"746fa3ba2daded6ab9ccc1e39d3835aa1dfcb9b5a54acc2ebe6b79a4"
   let init_output_ref =
     OutputReference {
-      transaction_id: TransactionId {
-        hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-      },
+      transaction_id: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
       output_index: 1,
     }
   let config =
     Config {
       init_utxo: init_output_ref,
       deadline: 86_400_000,
-      penalty_address: Address(credential.ScriptCredential("P"), None),
+      penalty_address: Address { payment_credential: Script("P"), stake_credential: None },
     }
   let redeemer = Deinit
-  let own_cs_value = value.add(value.zero(), own_cs, origin_node_token_name, -1)
-  let burn_value = value.add(value.zero(), own_cs, origin_node_token_name, -1)
+  let own_cs_value = assets.add(assets.zero, own_cs, origin_node_token_name, -1)
+  let burn_value = assets.add(assets.zero, own_cs, origin_node_token_name, -1)
   let in_output =
     Output {
-      address: Address(credential.ScriptCredential("B"), None),
-      value: value.add(
+      address: Address { payment_credential: Script("B"), stake_credential: None },
+      value: assets.add(
         own_cs_value,
-        value.ada_policy_id,
-        value.ada_asset_name,
+        assets.ada_policy_id,
+        assets.ada_asset_name,
         4_000_000,
       ),
       datum: InlineDatum(SetNode { key: Empty, next: Empty }),
       reference_script: None,
     }
-  let context =
-    ScriptContext {
-      purpose: Mint(own_cs),
-      transaction: Transaction {
-        inputs: [Input { output_reference: init_output_ref, output: in_output }],
-        reference_inputs: [],
-        outputs: [],
-        fee: value.zero(),
-        mint: value.to_minted_value(burn_value),
-        certificates: [],
-        withdrawals: dict.new(),
-        validity_range: interval.everything(),
-        extra_signatories: [],
-        redeemers: dict.new(),
-        datums: dict.new(),
-        id: TransactionId {
-          hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-        },
-      },
+  let tx =
+    Transaction {
+      inputs: [Input { output_reference: init_output_ref, output: in_output }],
+      reference_inputs: [],
+      outputs: [],
+      fee: 0,
+      mint: burn_value,
+      certificates: [],
+      withdrawals: [],
+      validity_range: interval.everything,
+      extra_signatories: [],
+      redeemers: [],
+      datums: dict.empty,
+      id: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
+      votes: [],
+      proposal_procedures: [],
+      current_treasury_amount: None,
+      treasury_donation: None,
     }
 
-  mint_validator(config, redeemer, context)
+  sample.mint(config, redeemer, own_cs, tx)
 }
 
 test mint_validator_deinit_fails_on_non_empty() fail {
   let own_cs = #"746fa3ba2daded6ab9ccc1e39d3835aa1dfcb9b5a54acc2ebe6b79a4"
   let init_output_ref =
     OutputReference {
-      transaction_id: TransactionId {
-        hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-      },
+      transaction_id: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
       output_index: 1,
     }
   let config =
     Config {
       init_utxo: init_output_ref,
       deadline: 86_400_000,
-      penalty_address: Address(credential.ScriptCredential("P"), None),
+      penalty_address: Address { payment_credential: Script("P"), stake_credential: None },
     }
   let user2_pkh =
     bytearray.from_string(
@@ -180,68 +179,65 @@ test mint_validator_deinit_fails_on_non_empty() fail {
   let user2_tn = "FSNe18d73505be6420225ed2a42c8e975e4c6f9148ab38e951ea2572e54"
   let remove_output_ref =
     OutputReference {
-      transaction_id: TransactionId { hash: #"" },
+      transaction_id: #"",
       output_index: 1,
     }
   let remove_node =
     SetNode { key: Key { key: user2_pkh }, next: Key { key: user2_pkh } }
-  let user2_value = value.add(value.zero(), own_cs, user2_tn, 1)
+  let user2_value = assets.add(assets.zero, own_cs, user2_tn, 1)
   let remove_node_output =
     Output {
-      address: Address(credential.ScriptCredential("I"), None),
-      value: value.add(
+      address: Address { payment_credential: Script("I"), stake_credential: None },
+      value: assets.add(
         user2_value,
-        value.ada_policy_id,
-        value.ada_asset_name,
+        assets.ada_policy_id,
+        assets.ada_asset_name,
         9_000_000,
       ),
       datum: InlineDatum(remove_node),
       reference_script: None,
     }
-  let burn_value = value.add(value.zero(), own_cs, origin_node_token_name, -1)
+  let burn_value = assets.add(assets.zero, own_cs, origin_node_token_name, -1)
   let redeemer = Deinit
-  let context =
-    ScriptContext {
-      purpose: Mint(own_cs),
-      transaction: Transaction {
-        inputs: [
-          Input {
-            output_reference: remove_output_ref,
-            output: remove_node_output,
-          },
-        ],
-        reference_inputs: [],
-        outputs: [],
-        fee: value.zero(),
-        mint: value.to_minted_value(burn_value),
-        certificates: [],
-        withdrawals: dict.new(),
-        validity_range: interval.everything(),
-        extra_signatories: [],
-        redeemers: dict.new(),
-        datums: dict.new(),
-        id: TransactionId {
-          hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
+  let tx =
+    Transaction {
+      inputs: [
+        Input {
+          output_reference: remove_output_ref,
+          output: remove_node_output,
         },
-      },
+      ],
+      reference_inputs: [],
+      outputs: [],
+      fee: 0,
+      mint: burn_value,
+      certificates: [],
+      withdrawals: [],
+      validity_range: interval.everything,
+      extra_signatories: [],
+      redeemers: [],
+      datums: dict.empty,
+      id: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
+      votes: [],
+      proposal_procedures: [],
+      current_treasury_amount: None,
+      treasury_donation: None,
     }
-  mint_validator(config, redeemer, context)
+  sample.mint(config, redeemer, own_cs, tx)
 }
 
 test mint_validator_insert() {
   let own_cs = #"746fa3ba2daded6ab9ccc1e39d3835aa1dfcb9b5a54acc2ebe6b79a4"
   let init_output_ref =
     OutputReference {
-      transaction_id: TransactionId {
-        hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-      },
+      transaction_id: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
       output_index: 1,
     }
   let config =
     Config {
       init_utxo: init_output_ref,
       deadline: 86_400_000,
-      penalty_address: Address(credential.ScriptCredential("P"), None),
+      penalty_address: Address { payment_credential: Script("P"), stake_credential: None },
     }
   let user1_pkh =
     bytearray.from_string(
@@ -254,25 +250,25 @@ test mint_validator_insert() {
       @"e18d73505be6420225ed2a42c8e975e4c6f9148ab38e951ea2572e54",
     )
   let insert_tn = "FSNe18d73505be6420225ed2a42c8e975e4c6f9148ab38e951ea2572e54"
-  let covering_minted_value = value.add(value.zero(), own_cs, covering_tn, 1)
+  let covering_minted_value = assets.add(assets.zero, own_cs, covering_tn, 1)
   let covering_node_value =
-    value.add(
+    assets.add(
       covering_minted_value,
-      value.ada_policy_id,
-      value.ada_asset_name,
+      assets.ada_policy_id,
+      assets.ada_asset_name,
       9_000_000,
     )
   let covering_node = SetNode { key: Key { key: user1_pkh }, next: Empty }
   let covering_output =
     Output {
-      address: Address(credential.ScriptCredential("I"), None),
+      address: Address { payment_credential: Script("I"), stake_credential: None },
       value: covering_node_value,
       datum: InlineDatum(covering_node),
       reference_script: None,
     }
   let covering_output_ref =
     OutputReference {
-      transaction_id: TransactionId { hash: #"" },
+      transaction_id: #"",
       output_index: 1,
     }
   let out_prev_node =
@@ -280,21 +276,21 @@ test mint_validator_insert() {
 
   let out_prev_node_output =
     Output {
-      address: Address(credential.ScriptCredential("I"), None),
+      address: Address { payment_credential: Script("I"), stake_credential: None },
       value: covering_node_value,
       datum: InlineDatum(out_prev_node),
       reference_script: None,
     }
   let out_node =
     SetNode { key: Key { key: user2_pkh }, next: covering_node.next }
-  let insert_minted_value = value.add(value.zero(), own_cs, insert_tn, 1)
+  let insert_minted_value = assets.add(assets.zero, own_cs, insert_tn, 1)
   let out_node_output =
     Output {
-      address: Address(credential.ScriptCredential("I"), None),
-      value: value.add(
+      address: Address { payment_credential: Script("I"), stake_credential: None },
+      value: assets.add(
         insert_minted_value,
-        value.ada_policy_id,
-        value.ada_asset_name,
+        assets.ada_policy_id,
+        assets.ada_asset_name,
         9_000_000,
       ),
       datum: InlineDatum(out_node),
@@ -312,48 +308,45 @@ test mint_validator_insert() {
         is_inclusive: False,
       },
     }
-  let context =
-    ScriptContext {
-      purpose: Mint(own_cs),
-      transaction: Transaction {
-        inputs: [
-          Input {
-            output_reference: covering_output_ref,
-            output: covering_output,
-          },
-        ],
-        reference_inputs: [],
-        outputs: [out_prev_node_output, out_node_output],
-        fee: value.zero(),
-        mint: value.to_minted_value(insert_minted_value),
-        certificates: [],
-        withdrawals: dict.new(),
-        validity_range: insert_timerange,
-        extra_signatories: [user2_pkh],
-        redeemers: dict.new(),
-        datums: dict.new(),
-        id: TransactionId {
-          hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
+  let tx =
+    Transaction {
+      inputs: [
+        Input {
+          output_reference: covering_output_ref,
+          output: covering_output,
         },
-      },
+      ],
+      reference_inputs: [],
+      outputs: [out_prev_node_output, out_node_output],
+      fee: 0,
+      mint: insert_minted_value,
+      certificates: [],
+      withdrawals: [],
+      validity_range: insert_timerange,
+      extra_signatories: [user2_pkh],
+      redeemers: [],
+      datums: dict.empty,
+      id: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
+      votes: [],
+      proposal_procedures: [],
+      current_treasury_amount: None,
+      treasury_donation: None,
     }
-  mint_validator(config, redeemer, context)
+  sample.mint(config, redeemer, own_cs, tx)
 }
 
 test mint_validator_remove() {
   let own_cs = #"746fa3ba2daded6ab9ccc1e39d3835aa1dfcb9b5a54acc2ebe6b79a4"
   let init_output_ref =
     OutputReference {
-      transaction_id: TransactionId {
-        hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
-      },
+      transaction_id: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
       output_index: 1,
     }
   let config =
     Config {
       init_utxo: init_output_ref,
       deadline: 86_400_000,
-      penalty_address: Address(credential.ScriptCredential("P"), None),
+      penalty_address: Address { payment_credential: Script("P"), stake_credential: None },
     }
   let user1_pkh =
     bytearray.from_string(
@@ -366,42 +359,42 @@ test mint_validator_remove() {
       @"e18d73505be6420225ed2a42c8e975e4c6f9148ab38e951ea2572e54",
     )
   let user2_tn = "FSNe18d73505be6420225ed2a42c8e975e4c6f9148ab38e951ea2572e54"
-  let covering_minted_value = value.add(value.zero(), own_cs, covering_tn, 1)
+  let covering_minted_value = assets.add(assets.zero, own_cs, covering_tn, 1)
   let covering_node_value =
-    value.add(
+    assets.add(
       covering_minted_value,
-      value.ada_policy_id,
-      value.ada_asset_name,
+      assets.ada_policy_id,
+      assets.ada_asset_name,
       9_000_000,
     )
   let covering_node =
     SetNode { key: Key { key: user1_pkh }, next: Key { key: user2_pkh } }
   let covering_output =
     Output {
-      address: Address(credential.ScriptCredential("I"), None),
+      address: Address { payment_credential: Script("I"), stake_credential: None },
       value: covering_node_value,
       datum: InlineDatum(covering_node),
       reference_script: None,
     }
   let covering_output_ref =
     OutputReference {
-      transaction_id: TransactionId { hash: #"" },
+      transaction_id: #"",
       output_index: 1,
     }
   let remove_output_ref =
     OutputReference {
-      transaction_id: TransactionId { hash: #"" },
+      transaction_id: #"",
       output_index: 1,
     }
   let remove_node = SetNode { key: Key { key: user2_pkh }, next: Empty }
-  let user2_value = value.add(value.zero(), own_cs, user2_tn, 1)
+  let user2_value = assets.add(assets.zero, own_cs, user2_tn, 1)
   let remove_node_output =
     Output {
-      address: Address(credential.ScriptCredential("I"), None),
-      value: value.add(
+      address: Address { payment_credential: Script("I"), stake_credential: None },
+      value: assets.add(
         user2_value,
-        value.ada_policy_id,
-        value.ada_asset_name,
+        assets.ada_policy_id,
+        assets.ada_asset_name,
         9_000_000,
       ),
       datum: InlineDatum(remove_node),
@@ -410,12 +403,12 @@ test mint_validator_remove() {
   let output_node = SetNode { key: covering_node.key, next: remove_node.next }
   let out_node_output =
     Output {
-      address: Address(credential.ScriptCredential("I"), None),
+      address: Address { payment_credential: Script("I"), stake_credential: None },
       value: covering_node_value,
       datum: InlineDatum(output_node),
       reference_script: None,
     }
-  let remove_burn_value = value.add(value.zero(), own_cs, user2_tn, -1)
+  let remove_burn_value = assets.add(assets.zero, own_cs, user2_tn, -1)
   let cover_node = SetNode { key: Key { key: user1_pkh }, next: Empty }
   let redeemer = Remove { key_to_remove: user2_pkh, covering_node: cover_node }
   let remove_timerange =
@@ -429,34 +422,33 @@ test mint_validator_remove() {
         is_inclusive: False,
       },
     }
-  let context =
-    ScriptContext {
-      purpose: Mint(own_cs),
-      transaction: Transaction {
-        inputs: [
-          Input {
-            output_reference: remove_output_ref,
-            output: remove_node_output,
-          },
-          Input {
-            output_reference: covering_output_ref,
-            output: covering_output,
-          },
-        ],
-        reference_inputs: [],
-        outputs: [out_node_output],
-        fee: value.zero(),
-        mint: value.to_minted_value(remove_burn_value),
-        certificates: [],
-        withdrawals: dict.new(),
-        validity_range: remove_timerange,
-        extra_signatories: [user2_pkh],
-        redeemers: dict.new(),
-        datums: dict.new(),
-        id: TransactionId {
-          hash: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
+  let tx =
+    Transaction {
+      inputs: [
+        Input {
+          output_reference: remove_output_ref,
+          output: remove_node_output,
         },
-      },
+        Input {
+          output_reference: covering_output_ref,
+          output: covering_output,
+        },
+      ],
+      reference_inputs: [],
+      outputs: [out_node_output],
+      fee: 0,
+      mint: remove_burn_value,
+      certificates: [],
+      withdrawals: [],
+      validity_range: remove_timerange,
+      extra_signatories: [user2_pkh],
+      redeemers: [],
+      datums: dict.empty,
+      id: #"2c6dbc95c1e96349c4131a9d19b029362542b31ffd2340ea85dd8f28e271ff6d",
+      votes: [],
+      proposal_procedures: [],
+      current_treasury_amount: None,
+      treasury_donation: None,
     }
-  mint_validator(config, redeemer, context)
+  sample.mint(config, redeemer, own_cs, tx)
 }
