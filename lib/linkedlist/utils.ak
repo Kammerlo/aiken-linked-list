@@ -70,15 +70,15 @@ pub fn make_common(
     from_node_val
       |> list.concat(to_node_val)
       |> list.reduce(
-           True,
-           fn(acc, cur_node) {
-             let Output { address: cur_address, .. } = cur_node
-             and {
-               cur_address == node_address,
-               acc,
-             }
-           },
-         )
+          True,
+          fn(acc, cur_node) {
+            let Output { address: cur_address, .. } = cur_node
+            and {
+              cur_address == node_address,
+              acc,
+            }
+          },
+        )
   let node_inputs = list.map(from_node_val, node_input_utxo_datum_unsafe)
   let node_outputs =
     list.map(to_node_val, fn(node) { parse_node_output_utxo(own_cs, node) })
@@ -106,11 +106,11 @@ pub fn get_outputs(inputs: List<Input>) -> List<Output> {
 pub fn only_at_node_val(outputs: List<Output>, cs: PolicyId) -> List<Output> {
   outputs
     |> list.filter(
-         fn(output) {
-           let Output { value, .. } = output
-           has_data_cs(cs, value)
-         },
-       )
+        fn(output) {
+          let Output { value, .. } = output
+          has_data_cs(cs, value)
+        },
+      )
 }
 
 pub fn node_input_utxo_datum_unsafe(output: Output) -> NodePair {
@@ -169,15 +169,15 @@ pub fn find_cs_by_token_prefix(
   value
     |> flatten
     |> list.filter_map(
-         fn(input: (PolicyId, ByteArray, Int)) -> Option<PolicyId> {
-           let (cs, tn, _amt) = input
-           if is_prefix_of(prefix, tn) {
-             Some(cs)
-           } else {
-             None
-           }
-         },
-       )
+        fn(input: (PolicyId, ByteArray, Int)) -> Option<PolicyId> {
+          let (cs, tn, _amt) = input
+          if is_prefix_of(prefix, tn) {
+            Some(cs)
+          } else {
+            None
+          }
+        },
+      )
 }
 
 pub fn is_prefix_of(prefix: ByteArray, src: ByteArray) -> Bool {

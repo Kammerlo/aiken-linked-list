@@ -56,13 +56,19 @@ test mint_validator_init() {
     Config {
       init_utxo: init_output_ref,
       deadline: 86_400_000,
-      penalty_address: Address { payment_credential: Script("P"), stake_credential: None },
+      penalty_address: Address {
+        payment_credential: Script("P"),
+        stake_credential: None,
+      },
     }
   let redeemer = Init
   let minted_value = assets.add(assets.zero, own_cs, origin_node_token_name, 1)
   let head_output =
     Output {
-      address: Address { payment_credential: Script("B"), stake_credential: None },
+      address: Address {
+        payment_credential: Script("B"),
+        stake_credential: None,
+      },
       value: assets.add(
         minted_value,
         assets.ada_policy_id,
@@ -119,14 +125,20 @@ test mint_validator_deinit() {
     Config {
       init_utxo: init_output_ref,
       deadline: 86_400_000,
-      penalty_address: Address { payment_credential: Script("P"), stake_credential: None },
+      penalty_address: Address {
+        payment_credential: Script("P"),
+        stake_credential: None,
+      },
     }
   let redeemer = Deinit
   let own_cs_value = assets.add(assets.zero, own_cs, origin_node_token_name, -1)
   let burn_value = assets.add(assets.zero, own_cs, origin_node_token_name, -1)
   let in_output =
     Output {
-      address: Address { payment_credential: Script("B"), stake_credential: None },
+      address: Address {
+        payment_credential: Script("B"),
+        stake_credential: None,
+      },
       value: assets.add(
         own_cs_value,
         assets.ada_policy_id,
@@ -170,7 +182,10 @@ test mint_validator_deinit_fails_on_non_empty() fail {
     Config {
       init_utxo: init_output_ref,
       deadline: 86_400_000,
-      penalty_address: Address { payment_credential: Script("P"), stake_credential: None },
+      penalty_address: Address {
+        payment_credential: Script("P"),
+        stake_credential: None,
+      },
     }
   let user2_pkh =
     bytearray.from_string(
@@ -178,16 +193,16 @@ test mint_validator_deinit_fails_on_non_empty() fail {
     )
   let user2_tn = "FSNe18d73505be6420225ed2a42c8e975e4c6f9148ab38e951ea2572e54"
   let remove_output_ref =
-    OutputReference {
-      transaction_id: #"",
-      output_index: 1,
-    }
+    OutputReference { transaction_id: #"", output_index: 1 }
   let remove_node =
     SetNode { key: Key { key: user2_pkh }, next: Key { key: user2_pkh } }
   let user2_value = assets.add(assets.zero, own_cs, user2_tn, 1)
   let remove_node_output =
     Output {
-      address: Address { payment_credential: Script("I"), stake_credential: None },
+      address: Address {
+        payment_credential: Script("I"),
+        stake_credential: None,
+      },
       value: assets.add(
         user2_value,
         assets.ada_policy_id,
@@ -237,7 +252,10 @@ test mint_validator_insert() {
     Config {
       init_utxo: init_output_ref,
       deadline: 86_400_000,
-      penalty_address: Address { payment_credential: Script("P"), stake_credential: None },
+      penalty_address: Address {
+        payment_credential: Script("P"),
+        stake_credential: None,
+      },
     }
   let user1_pkh =
     bytearray.from_string(
@@ -261,22 +279,25 @@ test mint_validator_insert() {
   let covering_node = SetNode { key: Key { key: user1_pkh }, next: Empty }
   let covering_output =
     Output {
-      address: Address { payment_credential: Script("I"), stake_credential: None },
+      address: Address {
+        payment_credential: Script("I"),
+        stake_credential: None,
+      },
       value: covering_node_value,
       datum: InlineDatum(covering_node),
       reference_script: None,
     }
   let covering_output_ref =
-    OutputReference {
-      transaction_id: #"",
-      output_index: 1,
-    }
+    OutputReference { transaction_id: #"", output_index: 1 }
   let out_prev_node =
     SetNode { key: covering_node.key, next: Key { key: user2_pkh } }
 
   let out_prev_node_output =
     Output {
-      address: Address { payment_credential: Script("I"), stake_credential: None },
+      address: Address {
+        payment_credential: Script("I"),
+        stake_credential: None,
+      },
       value: covering_node_value,
       datum: InlineDatum(out_prev_node),
       reference_script: None,
@@ -286,7 +307,10 @@ test mint_validator_insert() {
   let insert_minted_value = assets.add(assets.zero, own_cs, insert_tn, 1)
   let out_node_output =
     Output {
-      address: Address { payment_credential: Script("I"), stake_credential: None },
+      address: Address {
+        payment_credential: Script("I"),
+        stake_credential: None,
+      },
       value: assets.add(
         insert_minted_value,
         assets.ada_policy_id,
@@ -311,10 +335,7 @@ test mint_validator_insert() {
   let tx =
     Transaction {
       inputs: [
-        Input {
-          output_reference: covering_output_ref,
-          output: covering_output,
-        },
+        Input { output_reference: covering_output_ref, output: covering_output },
       ],
       reference_inputs: [],
       outputs: [out_prev_node_output, out_node_output],
@@ -346,7 +367,10 @@ test mint_validator_remove() {
     Config {
       init_utxo: init_output_ref,
       deadline: 86_400_000,
-      penalty_address: Address { payment_credential: Script("P"), stake_credential: None },
+      penalty_address: Address {
+        payment_credential: Script("P"),
+        stake_credential: None,
+      },
     }
   let user1_pkh =
     bytearray.from_string(
@@ -371,26 +395,26 @@ test mint_validator_remove() {
     SetNode { key: Key { key: user1_pkh }, next: Key { key: user2_pkh } }
   let covering_output =
     Output {
-      address: Address { payment_credential: Script("I"), stake_credential: None },
+      address: Address {
+        payment_credential: Script("I"),
+        stake_credential: None,
+      },
       value: covering_node_value,
       datum: InlineDatum(covering_node),
       reference_script: None,
     }
   let covering_output_ref =
-    OutputReference {
-      transaction_id: #"",
-      output_index: 1,
-    }
+    OutputReference { transaction_id: #"", output_index: 1 }
   let remove_output_ref =
-    OutputReference {
-      transaction_id: #"",
-      output_index: 1,
-    }
+    OutputReference { transaction_id: #"", output_index: 1 }
   let remove_node = SetNode { key: Key { key: user2_pkh }, next: Empty }
   let user2_value = assets.add(assets.zero, own_cs, user2_tn, 1)
   let remove_node_output =
     Output {
-      address: Address { payment_credential: Script("I"), stake_credential: None },
+      address: Address {
+        payment_credential: Script("I"),
+        stake_credential: None,
+      },
       value: assets.add(
         user2_value,
         assets.ada_policy_id,
@@ -403,7 +427,10 @@ test mint_validator_remove() {
   let output_node = SetNode { key: covering_node.key, next: remove_node.next }
   let out_node_output =
     Output {
-      address: Address { payment_credential: Script("I"), stake_credential: None },
+      address: Address {
+        payment_credential: Script("I"),
+        stake_credential: None,
+      },
       value: covering_node_value,
       datum: InlineDatum(output_node),
       reference_script: None,
@@ -429,10 +456,7 @@ test mint_validator_remove() {
           output_reference: remove_output_ref,
           output: remove_node_output,
         },
-        Input {
-          output_reference: covering_output_ref,
-          output: covering_output,
-        },
+        Input { output_reference: covering_output_ref, output: covering_output },
       ],
       reference_inputs: [],
       outputs: [out_node_output],
